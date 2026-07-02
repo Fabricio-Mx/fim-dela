@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galeria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar" aria-label="Barra superior">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <strong>Memories</strong>
+        </div>
+        <div class="topbar-actions" aria-hidden="true">
+          <button class="topbar-button" type="button">+</button>
+          <button class="topbar-button" type="button">♡</button>
+          <button class="topbar-button" type="button">✉</button>
+        </div>
+      </header>
+
+      <main>
+        <section id="audioPanelContainer"></section>
+
+        <section class="hero" id="profileHero" aria-label="Perfil">
+          <div class="profile-card">
+            <img id="profileAvatar" class="profile-avatar" src="./Perfil.jpeg" alt="Avatar" />
+            <div class="profile-copy">
+              <div class="profile-heading">
+                <div class="profile-topline">
+                  <h2 id="profileName">Pão de Queijo</h2>
+                  <span class="verified-badge" aria-label="perfil em destaque">●</span>
+                </div>
+                <p class="profile-handle">@paodequeijo</p>
+              </div>
+              <div class="profile-stats" aria-hidden="true">
+                <div><strong id="profilePostsCount">0</strong><span>posts</span></div>
+                <div><strong id="profileFilesCount">0</strong><span>arquivos</span></div>
+                <div><strong id="profileVideoCount">0</strong><span>videos</span></div>
+              </div>
+              <p id="profileBio" class="profile-bio">Memorias, reels e pedacinhos da historia em um feed so.</p>
+              <div class="profile-actions" aria-hidden="true">
+                <button class="profile-action primary" type="button">Seguindo</button>
+                <button class="profile-action" type="button">Mensagem</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="highlights" aria-label="Destaques">
+          <div id="storiesRail" class="stories-rail"></div>
+        </section>
+
+        <section class="feed-tabs" aria-label="Navegacao do feed">
+          <button class="feed-tab is-active" type="button" data-feed="all">Publicacoes</button>
+          <button class="feed-tab" type="button" data-feed="videos">Reels</button>
+          <button class="feed-tab" type="button" data-feed="images">Memorias</button>
+        </section>
+
+        <p id="hostHint" class="host-hint" aria-hidden="true" style="display:none"></p>
+        <section id="gallery" class="gallery" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <dialog id="viewer" class="viewer">
+      <button id="closeViewer" class="viewer-close" type="button" aria-label="Fechar">
+        Fechar
+      </button>
+      <div class="viewer-body">
+        <div id="viewerMedia" class="viewer-media"></div>
+        <div class="viewer-caption">
+          <strong id="viewerTitle"></strong>
+          <span id="viewerType"></span>
+        </div>
+        <section id="viewerMeta" class="viewer-meta"></section>
+      </div>
+    </dialog>
+
+    <script src="./media-manifest.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
