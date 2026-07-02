@@ -4,6 +4,8 @@ const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
 const STORAGE_KEY = "galeria-social-state-v1";
 const DEFAULT_COMMENT_AUTHOR = "Convidado";
 const DEFAULT_START_TRACK = "Voltável - Ícaro e Gilmar.mp3";
+const EXCLUDED_MEDIA_FILES = new Set(["perfil.jpeg"]);
+const HIGHLIGHT_COUNT = 6;
 const VIDEO_EXTENSION_PRIORITY = new Map([
   ["mp4", 0],
   ["webm", 1],
@@ -29,8 +31,12 @@ const closeViewerButton = document.getElementById("closeViewer");
 const hostModeToggle = document.getElementById("hostModeToggle");
 const hostHint = document.getElementById("hostHint");
 const profilePostsCount = document.getElementById("profilePostsCount");
+const profileFilesCount = document.getElementById("profileFilesCount");
+const profileVideoCount = document.getElementById("profileVideoCount");
 const profileNameEl = document.getElementById("profileName");
 const profileAvatarEl = document.getElementById("profileAvatar");
+const profileBioEl = document.getElementById("profileBio");
+const storiesRail = document.getElementById("storiesRail");
 
 let mediaItems = [];
 let audioItems = [];
@@ -39,6 +45,7 @@ let viewerItem = null;
 let libheifReady;
 let audioWasPlaying = false;
 let videoSyncScheduled = false;
+let rawMediaCount = 0;
 
 const socialState = loadSocialState();
 const heicQueue = new Map();
@@ -166,25 +173,104 @@ function renderHeader() {
   const imageCount = mediaItems.filter((item) => item.type === "image").length;
   const videoCount = mediaItems.filter((item) => item.type === "video").length;
   const audioCount = audioItems.length;
-  const formats = [...new Set([...mediaItems, ...audioItems].map((item) => item.extension.toUpperCase()))].join(" • ");
 
-  // Atualiza contador no topo (se o elemento existir)
   try {
     if (profilePostsCount) {
-      profilePostsCount.textContent = `${imageCount + videoCount}`;
+      profilePostsCount.textContent = `${mediaItems.length}`;
+    }
+    if (profileFilesCount) {
+      profileFilesCount.textContent = `${rawMediaCount}`;
+    }
+    if (profileVideoCount) {
+      profileVideoCount.textContent = `${videoCount}`;
     }
     if (profileNameEl && profileNameEl.textContent.trim() === "") {
       profileNameEl.textContent = "Pão de Queijo";
     }
-    if (profileAvatarEl && !profileAvatarEl.getAttribute('src')) {
-      profileAvatarEl.setAttribute('src', './Perfil.jpeg');
+    if (profileAvatarEl && !profileAvatarEl.getAttribute("src")) {
+      profileAvatarEl.setAttribute("src", "./Perfil.jpeg");
+    }
+    if (profileBioEl) {
+      profileBioEl.textContent = `${imageCount} fotos, ${videoCount} videos e ${audioCount} faixas guardadas em um mural com cara de Instagram.`;
     }
   } catch (e) {
-    // não crítico
-    console.warn('Falha ao atualizar header:', e);
+    console.warn("Falha ao atualizar header:", e);
   }
 
+  renderHighlights();
   renderAudioPlayer(audioCount);
+}
+
+function formatHighlightLabel(fileName) {
+  const cleanLabel = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+  if (cleanLabel.length <= 14) {
+    return cleanLabel;
+  }
+
+  return `${cleanLabel.slice(0, 12).trim()}...`;
+}
+
+function createHighlightPreview(item) {
+  if (item.previewPath) {
+    const image = document.createElement("img");
+    image.src = item.previewPath;
+    image.alt = item.fileName;
+    return image;
+  }
+
+  if (item.type === "image" && item.extension !== "heic" && item.extension !== "heif") {
+    const image = document.createElement("img");
+    image.src = item.path;
+    image.alt = item.fileName;
+    return image;
+  }
+
+  const fallback = document.createElement("div");
+  fallback.className = "story-fallback";
+  fallback.textContent = item.type === "video" ? "▶" : item.extension.toUpperCase();
+  return fallback;
+}
+
+function renderHighlights() {
+  if (!storiesRail) {
+    return;
+  }
+
+  storiesRail.textContent = "";
+
+  mediaItems.slice(0, HIGHLIGHT_COUNT).forEach((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "story-card";
+    button.addEventListener("click", () => openViewer(item));
+
+    const media = document.createElement("span");
+    media.className = "story-card-media";
+    media.appendChild(createHighlightPreview(item));
+
+    const label = document.createElement("span");
+    label.className = "story-card-label";
+    label.textContent = formatHighlightLabel(item.fileName);
+
+    button.append(media, label);
+    storiesRail.appendChild(button);
+  });
+}
+
+function getPostMetaLabel(item) {
+  return item.type === "video" ? "Reel de memoria" : "Memoria em destaque";
+}
+
+function getPostCaption(item, state) {
+  if (state.meaning.trim()) {
+    return state.meaning.trim();
+  }
+
+  if (item.type === "video") {
+    return "Video favorito tocando direto no feed, como um reel guardado com carinho.";
+  }
+
+  return "Foto publicada como lembranca fixa do perfil, pronta para comentario e curtida.";
 }
 
 function getDefaultStartTrack() {
@@ -411,9 +497,10 @@ function createCard(item) {
   postHeader.innerHTML = `
     <img class="post-author-avatar" src="./Perfil.jpeg" alt="Avatar de Pão de Queijo" />
     <div class="post-author-copy">
-      <strong>Pão de Queijo</strong>
-      <span>@paodequeijo</span>
+      <strong>Pão de Queijo <span class="post-verified" aria-hidden="true">●</span></strong>
+      <span>${getPostMetaLabel(item)}</span>
     </div>
+    <button class="post-menu" type="button" aria-label="Mais opcoes">•••</button>
   `;
 
   const button = document.createElement("button");
@@ -463,16 +550,16 @@ function createCard(item) {
 
   const name = document.createElement("div");
   name.className = "media-name";
-  name.textContent = item.fileName;
+  name.textContent = `@paodequeijo • ${item.fileName}`;
 
   const meta = document.createElement("div");
   meta.className = "media-meta";
-  meta.textContent = humanTypeLabel(item);
+  meta.textContent = `${humanTypeLabel(item)} • toque para ampliar`;
 
   info.append(name, meta);
   const caption = document.createElement("div");
   caption.className = "post-caption";
-  caption.textContent = `${item.fileName} • ${humanTypeLabel(item)}`;
+  caption.innerHTML = `<strong>Pão de Queijo</strong> ${escapeHtml(getPostCaption(item, state))}`;
   card.append(postHeader, button, caption, info, createSocialSection(item, state));
   return card;
 }
@@ -499,22 +586,36 @@ function createSocialSection(item, state) {
     : '<p class="comment-empty">Se quiser, deixe o primeiro comentario.</p>';
 
   social.innerHTML = `
-    <div class="action-row">
+    <div class="post-actions-bar">
       <div class="action-group">
-        <button class="action-button ${state.liked ? "is-active" : ""}" type="button" data-action="like">${
-          state.liked ? "Curtido" : "Curtir"
-        }</button>
-        <button class="action-button" type="button" data-action="open-viewer">Ampliar</button>
+        <button class="icon-button ${state.liked ? "is-active" : ""}" type="button" data-action="like" aria-label="${
+          state.liked ? "Descurtir" : "Curtir"
+        } postagem">
+          <span class="icon-glyph">${state.liked ? "♥" : "♡"}</span>
+          <span class="icon-label">${state.liked ? "Curtido" : "Curtir"}</span>
+        </button>
+        <button class="icon-button" type="button" data-action="open-viewer" aria-label="Abrir postagem">
+          <span class="icon-glyph">◌</span>
+          <span class="icon-label">Abrir</span>
+        </button>
+        <button class="icon-button" type="button" data-action="focus-comment" aria-label="Ir para comentario">
+          <span class="icon-glyph">✎</span>
+          <span class="icon-label">Comentar</span>
+        </button>
       </div>
-      <div class="action-stats">
-        <strong>${state.likes} curtidas</strong>
-        <span>${formatCommentCount(state.comments.length)}</span>
-      </div>
+      <button class="icon-button save-button" type="button" aria-label="Salvar memoria">
+        <span class="icon-glyph">⌑</span>
+      </button>
+    </div>
+    <div class="action-stats action-stats-inline">
+      <strong>${state.likes} curtidas</strong>
+      <span>${formatCommentCount(state.comments.length)}</span>
+      <span>${item.fileName}</span>
     </div>
     <div class="meaning-block">
       <div class="meaning-label-row">
         <strong>Significado</strong>
-        <span>${socialState.hostMode ? "Editavel" : "Publicado"}</span>
+        <span>${socialState.hostMode ? "rascunho aberto" : "publicado"}</span>
       </div>
       <div class="meaning-preview">${meaningMarkup}</div>
       <form class="host-meaning-form ${socialState.hostMode ? "" : "is-hidden"}" data-action="meaning-form">
@@ -540,6 +641,9 @@ function createSocialSection(item, state) {
 
   social.querySelector('[data-action="like"]').addEventListener("click", () => toggleLike(item.fileName));
   social.querySelector('[data-action="open-viewer"]').addEventListener("click", () => openViewer(item));
+  social.querySelector('[data-action="focus-comment"]').addEventListener("click", () => {
+    social.querySelector('textarea[name="comment"]')?.focus();
+  });
   social.querySelector('[data-action="meaning-form"]').addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -598,10 +702,8 @@ function refreshSocialSurfaces(fileName) {
 
   const card = galleryElement.querySelector(`[data-file-name="${CSS.escape(fileName)}"]`);
   if (card) {
-    const panel = card.querySelector(".social-panel");
-    if (panel) {
-      panel.replaceWith(createSocialSection(item, getItemSocialState(fileName)));
-    }
+    card.replaceWith(createCard(item));
+    scheduleVideoSync();
   }
 
   if (viewerItem && viewerItem.fileName === fileName && viewer.open) {
@@ -949,8 +1051,18 @@ function normalizeAudioItems(audioManifest) {
 
 async function bootstrap() {
   const [fileNames, audioManifest] = await Promise.all([loadManifest(), loadAudioManifest()]);
+  const normalizedFiles = fileNames.filter((fileName) => {
+    if (EXCLUDED_MEDIA_FILES.has(fileName.toLowerCase())) {
+      return false;
+    }
+
+    const extension = fileName.split(".").pop().toLowerCase();
+    return IMAGE_EXTENSIONS.has(extension) || VIDEO_EXTENSIONS.has(extension);
+  });
+
+  rawMediaCount = normalizedFiles.length;
   mediaItems = normalizeItems(
-    fileNames.filter((fileName) => {
+    normalizedFiles.filter((fileName) => {
       const extension = fileName.split(".").pop().toLowerCase();
       return IMAGE_EXTENSIONS.has(extension) || VIDEO_EXTENSIONS.has(extension);
     })
