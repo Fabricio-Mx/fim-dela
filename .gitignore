@@ -1,12 +1,9 @@
-# Ignore large media files and local artifacts
+﻿# Ignore large media files and local artifacts
 *.zip
-*.mp3
 *.HEIC
 *.heic
 *.MOV
 *.mov
-*.MP4
-*.mp4
 *.M4V
 *.m4v
 node_modules/
