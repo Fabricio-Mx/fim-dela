@@ -1,9 +1,5 @@
-﻿# Ignore large media files and local artifacts
-*.zip
-*.HEIC
+node_modules
+*.MOV
 *.heic
-*.M4V
-*.m4v
-node_modules/
-.DS_Store
-Thumbs.db
+*.mp4
+*.zip

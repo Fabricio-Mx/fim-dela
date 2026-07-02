@@ -525,8 +525,8 @@ textarea {
   padding: 10px 14px;
   border: 1px solid var(--card-border);
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.48);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.8);
+  color: #111;
   cursor: pointer;
 }
 

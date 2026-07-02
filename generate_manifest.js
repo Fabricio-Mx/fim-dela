@@ -31,15 +31,32 @@ function generateManifest() {
       }
       return f;
     })
-    .filter((f, i, arr) => arr.indexOf(f) === i) // Remove duplicatas
+    .filter((f, i, arr) => arr.indexOf(f) === i); // Remove duplicatas
+    
+  // Prefere MP4 em vez de HEIC para o mesmo nome base (Live Photos)
+  const mp4Basenames = new Set(
+    mediaFiles
+      .filter(f => f.toLowerCase().endsWith('.mp4'))
+      .map(f => path.basename(f, path.extname(f)))
+  );
+
+  const finalMediaFiles = mediaFiles
+    .filter(f => {
+      if (!f.toLowerCase().endsWith('.heic')) {
+        return true; // Mantem arquivos que não são HEIC
+      }
+      const heicBasename = path.basename(f, path.extname(f));
+      // Mantem HEIC somente se não houver um MP4 com o mesmo nome
+      return !mp4Basenames.has(heicBasename);
+    })
     .sort();
 
   const manifestCode = `window.MEDIA_MANIFEST = [
-${mediaFiles.map(f => `  "${f}",`).join('\n').replace(/,\n$/, '\n')}
+${finalMediaFiles.map(f => `  "${f}",`).join('\n').replace(/,\n$/, '\n')}
 ];
 `;
 
-  return { mediaFiles, manifestCode };
+  return { mediaFiles: finalMediaFiles, manifestCode };
 }
 
 try {

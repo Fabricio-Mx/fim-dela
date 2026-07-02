@@ -24,6 +24,7 @@ let audioItems = [];
 let activeAudioFile = "";
 let viewerItem = null;
 let libheifReady;
+let audioWasPlaying = false;
 
 const socialState = loadSocialState();
 const heicQueue = new Map();
@@ -52,6 +53,22 @@ const heicObserver = new IntersectionObserver(
     });
   },
   { rootMargin: "240px 0px" }
+);
+
+const videoObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        video.play().catch(error => {
+          console.warn("Video autoplay was prevented.", error);
+        });
+      } else {
+        video.pause();
+      }
+    });
+  },
+  { threshold: 0.5 }
 );
 
 function loadSocialState() {
@@ -298,7 +315,6 @@ function createCard(item) {
     video.loop = true;
     video.playsInline = true;
     video.preload = "metadata";
-    video.autoplay = true;
     video.addEventListener("error", () => {
       video.replaceWith(createVideoFallback(item));
     });
@@ -307,6 +323,7 @@ function createCard(item) {
     indicator.textContent = "▶";
     button.appendChild(video);
     button.appendChild(indicator);
+    videoObserver.observe(video);
   } else if (item.extension === "heic" || item.extension === "heif") {
     const loading = document.createElement("div");
     loading.className = "media-loading";
@@ -625,6 +642,12 @@ function renderViewerMeta(item) {
 }
 
 async function openViewer(item) {
+  const ambientAudio = document.getElementById("ambientAudio");
+  if (ambientAudio && !ambientAudio.paused) {
+    ambientAudio.pause();
+    audioWasPlaying = true;
+  }
+
   viewerItem = item;
   viewerTitle.textContent = item.fileName;
   viewerType.textContent = humanTypeLabel(item);
@@ -656,6 +679,14 @@ function closeViewer() {
   const media = viewerMedia.querySelector("video");
   if (media) {
     media.pause();
+  }
+
+  if (audioWasPlaying) {
+    const ambientAudio = document.getElementById("ambientAudio");
+    if (ambientAudio) {
+      ambientAudio.play().catch(e => console.warn("Could not resume audio", e));
+    }
+    audioWasPlaying = false;
   }
 
   viewer.close();
