@@ -15,6 +15,9 @@ const viewerMeta = document.getElementById("viewerMeta");
 const closeViewerButton = document.getElementById("closeViewer");
 const hostModeToggle = document.getElementById("hostModeToggle");
 const hostHint = document.getElementById("hostHint");
+const profilePostsCount = document.getElementById("profilePostsCount");
+const profileNameEl = document.getElementById("profileName");
+const profileAvatarEl = document.getElementById("profileAvatar");
 
 let mediaItems = [];
 let audioItems = [];
@@ -133,6 +136,22 @@ function renderHeader() {
   const videoCount = mediaItems.filter((item) => item.type === "video").length;
   const audioCount = audioItems.length;
   const formats = [...new Set([...mediaItems, ...audioItems].map((item) => item.extension.toUpperCase()))].join(" • ");
+
+  // Atualiza contador no topo (se o elemento existir)
+  try {
+    if (profilePostsCount) {
+      profilePostsCount.textContent = `${imageCount + videoCount}`;
+    }
+    if (profileNameEl && profileNameEl.textContent.trim() === "") {
+      profileNameEl.textContent = "Pão de Queijo";
+    }
+    if (profileAvatarEl && !profileAvatarEl.getAttribute('src')) {
+      profileAvatarEl.setAttribute('src', './Perfil.jpeg');
+    }
+  } catch (e) {
+    // não crítico
+    console.warn('Falha ao atualizar header:', e);
+  }
 
   renderAudioPlayer(audioCount);
 }
