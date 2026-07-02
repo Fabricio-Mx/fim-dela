@@ -6,6 +6,15 @@ const DEFAULT_COMMENT_AUTHOR = "Convidado";
 const DEFAULT_START_TRACK = "Voltável - Ícaro e Gilmar.mp3";
 const EXCLUDED_MEDIA_FILES = new Set(["perfil.jpeg"]);
 const HIGHLIGHT_COUNT = 6;
+const PROFILE = {
+  displayName: "Pão de Queijo",
+  handle: "@paodequeijo",
+  reelLabel: "Reel de memoria",
+  photoLabel: "Memoria em destaque",
+  defaultBio: "Arquivo afetivo com fotos, reels e significados reunidos em um unico perfil.",
+  reelsCaption: "Video favorito tocando direto no feed, como um reel guardado com carinho.",
+  imageCaption: "Foto publicada como lembranca fixa do perfil, pronta para comentario e curtida.",
+};
 const VIDEO_EXTENSION_PRIORITY = new Map([
   ["mp4", 0],
   ["webm", 1],
@@ -37,6 +46,7 @@ const profileNameEl = document.getElementById("profileName");
 const profileAvatarEl = document.getElementById("profileAvatar");
 const profileBioEl = document.getElementById("profileBio");
 const storiesRail = document.getElementById("storiesRail");
+const feedTabButtons = Array.from(document.querySelectorAll(".feed-tab"));
 
 let mediaItems = [];
 let audioItems = [];
@@ -46,6 +56,7 @@ let libheifReady;
 let audioWasPlaying = false;
 let videoSyncScheduled = false;
 let rawMediaCount = 0;
+let activeFeed = "all";
 
 const socialState = loadSocialState();
 const heicQueue = new Map();
@@ -185,7 +196,7 @@ function renderHeader() {
       profileVideoCount.textContent = `${videoCount}`;
     }
     if (profileNameEl && profileNameEl.textContent.trim() === "") {
-      profileNameEl.textContent = "Pão de Queijo";
+      profileNameEl.textContent = PROFILE.displayName;
     }
     if (profileAvatarEl && !profileAvatarEl.getAttribute("src")) {
       profileAvatarEl.setAttribute("src", "./Perfil.jpeg");
@@ -199,6 +210,29 @@ function renderHeader() {
 
   renderHighlights();
   renderAudioPlayer(audioCount);
+}
+
+function getFilteredMediaItems() {
+  if (activeFeed === "videos") {
+    return mediaItems.filter((item) => item.type === "video");
+  }
+
+  if (activeFeed === "images") {
+    return mediaItems.filter((item) => item.type === "image");
+  }
+
+  return mediaItems;
+}
+
+function syncFeedTabs() {
+  feedTabButtons.forEach((button) => {
+    const isActive = button.dataset.feed === activeFeed;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+
+  galleryElement.classList.toggle("is-reels-mode", activeFeed === "videos");
+  galleryElement.classList.toggle("is-memories-mode", activeFeed === "images");
 }
 
 function formatHighlightLabel(fileName) {
@@ -258,7 +292,7 @@ function renderHighlights() {
 }
 
 function getPostMetaLabel(item) {
-  return item.type === "video" ? "Reel de memoria" : "Memoria em destaque";
+  return item.type === "video" ? PROFILE.reelLabel : PROFILE.photoLabel;
 }
 
 function getPostCaption(item, state) {
@@ -267,10 +301,10 @@ function getPostCaption(item, state) {
   }
 
   if (item.type === "video") {
-    return "Video favorito tocando direto no feed, como um reel guardado com carinho.";
+    return PROFILE.reelsCaption;
   }
 
-  return "Foto publicada como lembranca fixa do perfil, pronta para comentario e curtida.";
+  return PROFILE.imageCaption;
 }
 
 function getDefaultStartTrack() {
@@ -491,13 +525,14 @@ function createCard(item) {
   const card = document.createElement("article");
   card.className = "media-card";
   card.dataset.fileName = item.fileName;
+  card.dataset.mediaType = item.type;
 
   const postHeader = document.createElement("div");
   postHeader.className = "post-header";
   postHeader.innerHTML = `
     <img class="post-author-avatar" src="./Perfil.jpeg" alt="Avatar de Pão de Queijo" />
     <div class="post-author-copy">
-      <strong>Pão de Queijo <span class="post-verified" aria-hidden="true">●</span></strong>
+      <strong>${PROFILE.displayName} <span class="post-verified" aria-hidden="true">●</span></strong>
       <span>${getPostMetaLabel(item)}</span>
     </div>
     <button class="post-menu" type="button" aria-label="Mais opcoes">•••</button>
@@ -550,7 +585,7 @@ function createCard(item) {
 
   const name = document.createElement("div");
   name.className = "media-name";
-  name.textContent = `@paodequeijo • ${item.fileName}`;
+  name.textContent = `${PROFILE.handle} • ${item.fileName}`;
 
   const meta = document.createElement("div");
   meta.className = "media-meta";
@@ -559,7 +594,7 @@ function createCard(item) {
   info.append(name, meta);
   const caption = document.createElement("div");
   caption.className = "post-caption";
-  caption.innerHTML = `<strong>Pão de Queijo</strong> ${escapeHtml(getPostCaption(item, state))}`;
+  caption.innerHTML = `<strong>${escapeHtml(PROFILE.displayName)}</strong> ${escapeHtml(getPostCaption(item, state))}`;
   card.append(postHeader, button, caption, info, createSocialSection(item, state));
   return card;
 }
@@ -612,36 +647,44 @@ function createSocialSection(item, state) {
       <span>${formatCommentCount(state.comments.length)}</span>
       <span>${item.fileName}</span>
     </div>
-    <div class="meaning-block">
-      <div class="meaning-label-row">
-        <strong>Significado</strong>
-        <span>${socialState.hostMode ? "rascunho aberto" : "publicado"}</span>
+    <details class="social-drawer meaning-block" data-drawer="meaning">
+      <summary class="drawer-summary">
+        <span class="drawer-title"><strong>Significado</strong><small>${socialState.hostMode ? "rascunho aberto" : "publicado"}</small></span>
+        <span class="drawer-meta">${state.meaning.trim() ? "ver texto" : "tocar para escrever"}</span>
+      </summary>
+      <div class="drawer-body">
+        <div class="meaning-preview">${meaningMarkup}</div>
+        <form class="host-meaning-form ${socialState.hostMode ? "" : "is-hidden"}" data-action="meaning-form">
+          <textarea name="meaning" rows="3" placeholder="Escreva aqui o significado desta memoria...">${escapeHtml(
+            state.meaning
+          )}</textarea>
+          <button class="submit-button" type="submit">Salvar significado</button>
+        </form>
       </div>
-      <div class="meaning-preview">${meaningMarkup}</div>
-      <form class="host-meaning-form ${socialState.hostMode ? "" : "is-hidden"}" data-action="meaning-form">
-        <textarea name="meaning" rows="3" placeholder="Escreva aqui o significado desta memoria...">${escapeHtml(
-          state.meaning
-        )}</textarea>
-        <button class="submit-button" type="submit">Salvar significado</button>
-      </form>
-    </div>
-    <div class="comments-block">
-      <div class="meaning-label-row">
-        <strong>Comentarios</strong>
-        <span>${state.comments.length}</span>
+    </details>
+    <details class="social-drawer comments-block" data-drawer="comments">
+      <summary class="drawer-summary">
+        <span class="drawer-title"><strong>Comentarios</strong><small>${state.comments.length} no momento</small></span>
+        <span class="drawer-meta">abrir conversa</span>
+      </summary>
+      <div class="drawer-body">
+        <div class="comment-list">${commentMarkup}</div>
+        <form class="comment-form" data-action="comment-form">
+          <input name="author" maxlength="40" placeholder="Seu nome" value="${DEFAULT_COMMENT_AUTHOR}" />
+          <textarea name="comment" rows="2" maxlength="280" placeholder="Escreva um comentario..."></textarea>
+          <button class="submit-button" type="submit">Comentar</button>
+        </form>
       </div>
-      <div class="comment-list">${commentMarkup}</div>
-      <form class="comment-form" data-action="comment-form">
-        <input name="author" maxlength="40" placeholder="Seu nome" value="${DEFAULT_COMMENT_AUTHOR}" />
-        <textarea name="comment" rows="2" maxlength="280" placeholder="Escreva um comentario..."></textarea>
-        <button class="submit-button" type="submit">Comentar</button>
-      </form>
-    </div>
+    </details>
   `;
 
   social.querySelector('[data-action="like"]').addEventListener("click", () => toggleLike(item.fileName));
   social.querySelector('[data-action="open-viewer"]').addEventListener("click", () => openViewer(item));
   social.querySelector('[data-action="focus-comment"]').addEventListener("click", () => {
+    const drawer = social.querySelector('[data-drawer="comments"]');
+    if (drawer) {
+      drawer.open = true;
+    }
     social.querySelector('textarea[name="comment"]')?.focus();
   });
   social.querySelector('[data-action="meaning-form"]').addEventListener("submit", (event) => {
@@ -935,15 +978,18 @@ function createVideoFallback(item) {
 
 function renderGallery() {
   renderHeader();
+  syncFeedTabs();
   galleryElement.textContent = "";
 
-  if (mediaItems.length === 0) {
+  const visibleItems = getFilteredMediaItems();
+
+  if (visibleItems.length === 0) {
     galleryElement.innerHTML = '<div class="media-error">Nenhuma midia encontrada na pasta Galeria.</div>';
     return;
   }
 
   const fragment = document.createDocumentFragment();
-  mediaItems.forEach((item) => fragment.appendChild(createCard(item)));
+  visibleItems.forEach((item) => fragment.appendChild(createCard(item)));
   galleryElement.appendChild(fragment);
   scheduleVideoSync();
 }
@@ -1083,6 +1129,19 @@ async function bootstrap() {
       renderGallery();
     });
   }
+
+  feedTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextFeed = button.dataset.feed || "all";
+      if (nextFeed === activeFeed) {
+        return;
+      }
+
+      activeFeed = nextFeed;
+      renderGallery();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
 
   updateHostHint();
   renderGallery();
