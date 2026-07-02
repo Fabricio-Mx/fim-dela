@@ -4,6 +4,19 @@ const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "m4a", "aac", "ogg", "flac"]);
 const STORAGE_KEY = "galeria-social-state-v1";
 const DEFAULT_COMMENT_AUTHOR = "Convidado";
 const DEFAULT_START_TRACK = "Voltável - Ícaro e Gilmar.mp3";
+const VIDEO_EXTENSION_PRIORITY = new Map([
+  ["mp4", 0],
+  ["webm", 1],
+  ["m4v", 2],
+  ["mov", 3],
+]);
+const IMAGE_EXTENSION_PRIORITY = new Map([
+  ["jpg", 0],
+  ["jpeg", 1],
+  ["png", 2],
+  ["heic", 3],
+  ["heif", 4],
+]);
 
 const audioPanelContainer = document.getElementById("audioPanelContainer");
 const galleryElement = document.getElementById("gallery");
@@ -25,6 +38,7 @@ let activeAudioFile = "";
 let viewerItem = null;
 let libheifReady;
 let audioWasPlaying = false;
+let videoSyncScheduled = false;
 
 const socialState = loadSocialState();
 const heicQueue = new Map();
@@ -60,15 +74,15 @@ const videoObserver = new IntersectionObserver(
     entries.forEach((entry) => {
       const video = entry.target;
       if (entry.isIntersecting) {
-        video.play().catch(error => {
-          console.warn("Video autoplay was prevented.", error);
-        });
+        requestInlineVideoPlayback(video);
       } else {
         video.pause();
       }
     });
+
+    scheduleVideoSync();
   },
-  { threshold: 0.5 }
+  { threshold: 0.35, rootMargin: "18% 0px -12% 0px" }
 );
 
 function loadSocialState() {
@@ -282,6 +296,110 @@ function createErrorState(message) {
   return element;
 }
 
+function splitFileName(fileName) {
+  const lastDotIndex = fileName.lastIndexOf(".");
+  if (lastDotIndex === -1) {
+    return { baseName: fileName, extension: "" };
+  }
+
+  return {
+    baseName: fileName.slice(0, lastDotIndex),
+    extension: fileName.slice(lastDotIndex + 1).toLowerCase(),
+  };
+}
+
+function getExtensionPriority(extension, priorityMap) {
+  return priorityMap.has(extension) ? priorityMap.get(extension) : Number.MAX_SAFE_INTEGER;
+}
+
+function pickPreferredFile(files, priorityMap) {
+  return [...files].sort((left, right) => {
+    const priorityDelta = getExtensionPriority(left.extension, priorityMap) - getExtensionPriority(right.extension, priorityMap);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+
+    return left.fileName.localeCompare(right.fileName, "pt-BR", { sensitivity: "base" });
+  })[0];
+}
+
+function configureAutoplayVideo(video) {
+  video.muted = true;
+  video.defaultMuted = true;
+  video.autoplay = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+  video.setAttribute("muted", "");
+  video.setAttribute("autoplay", "");
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+}
+
+function requestInlineVideoPlayback(video) {
+  const startPlayback = () => {
+    video.play().catch((error) => {
+      console.warn("Video autoplay was prevented.", error);
+    });
+  };
+
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    startPlayback();
+    return;
+  }
+
+  if (video.dataset.awaitingAutoplay === "true") {
+    return;
+  }
+
+  video.dataset.awaitingAutoplay = "true";
+  video.addEventListener(
+    "canplay",
+    () => {
+      delete video.dataset.awaitingAutoplay;
+      startPlayback();
+    },
+    { once: true }
+  );
+  video.load();
+}
+
+function getVisibleHeightRatio(element) {
+  const rect = element.getBoundingClientRect();
+  const visibleTop = Math.max(rect.top, 0);
+  const visibleBottom = Math.min(rect.bottom, window.innerHeight || document.documentElement.clientHeight);
+  const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+  return visibleHeight / Math.max(rect.height, 1);
+}
+
+function syncVisibleVideos() {
+  videoSyncScheduled = false;
+
+  galleryElement.querySelectorAll(".media-button video").forEach((video) => {
+    if (document.hidden) {
+      video.pause();
+      return;
+    }
+
+    if (getVisibleHeightRatio(video) >= 0.25) {
+      requestInlineVideoPlayback(video);
+      return;
+    }
+
+    video.pause();
+  });
+}
+
+function scheduleVideoSync() {
+  if (videoSyncScheduled) {
+    return;
+  }
+
+  videoSyncScheduled = true;
+  window.requestAnimationFrame(syncVisibleVideos);
+}
+
 function createCard(item) {
   const state = getItemSocialState(item.fileName);
   const card = document.createElement("article");
@@ -311,10 +429,8 @@ function createCard(item) {
   if (item.type === "video") {
     const video = document.createElement("video");
     video.src = item.path;
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.preload = "metadata";
+    configureAutoplayVideo(video);
+    video.addEventListener("loadeddata", scheduleVideoSync, { once: true });
     video.addEventListener("error", () => {
       video.replaceWith(createVideoFallback(item));
     });
@@ -658,7 +774,11 @@ async function openViewer(item) {
     video.src = item.path;
     video.controls = true;
     video.autoplay = true;
+    video.muted = true;
+    video.defaultMuted = true;
     video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
     video.addEventListener('error', () => {
       viewerMedia.textContent = '';
       viewerMedia.appendChild(createVideoFallback(item));
@@ -723,6 +843,7 @@ function renderGallery() {
   const fragment = document.createDocumentFragment();
   mediaItems.forEach((item) => fragment.appendChild(createCard(item)));
   galleryElement.appendChild(fragment);
+  scheduleVideoSync();
 }
 
 async function loadManifest() {
@@ -765,16 +886,53 @@ async function loadAudioManifest() {
 }
 
 function normalizeItems(fileNames) {
-  return fileNames.map((fileName) => {
-    const extension = fileName.split(".").pop().toLowerCase();
-    return {
+  const groupedItems = new Map();
+
+  fileNames.forEach((fileName, index) => {
+    const { baseName, extension } = splitFileName(fileName);
+    const key = baseName.toLowerCase();
+    const existingGroup = groupedItems.get(key) || { order: index, files: [] };
+
+    existingGroup.order = Math.min(existingGroup.order, index);
+    existingGroup.files.push({
       fileName,
+      baseName,
       extension,
-      type: VIDEO_EXTENSIONS.has(extension) ? "video" : "image",
       path: buildRelativePath(`Galeria/${fileName}`),
-      convertedUrl: null,
-    };
+    });
+    groupedItems.set(key, existingGroup);
   });
+
+  return [...groupedItems.values()]
+    .sort((left, right) => left.order - right.order)
+    .map((group) => {
+      const videos = group.files.filter((file) => VIDEO_EXTENSIONS.has(file.extension));
+      const images = group.files.filter((file) => IMAGE_EXTENSIONS.has(file.extension));
+
+      if (videos.length > 0) {
+        const preferredVideo = pickPreferredFile(videos, VIDEO_EXTENSION_PRIORITY);
+        const previewImage = images.length > 0 ? pickPreferredFile(images, IMAGE_EXTENSION_PRIORITY) : null;
+
+        return {
+          fileName: preferredVideo.fileName,
+          extension: preferredVideo.extension,
+          type: "video",
+          path: preferredVideo.path,
+          previewPath: previewImage ? previewImage.path : null,
+          convertedUrl: null,
+        };
+      }
+
+      const preferredImage = pickPreferredFile(images, IMAGE_EXTENSION_PRIORITY);
+      return {
+        fileName: preferredImage.fileName,
+        extension: preferredImage.extension,
+        type: "image",
+        path: preferredImage.path,
+        previewPath: null,
+        convertedUrl: null,
+      };
+    });
 }
 
 function normalizeAudioItems(audioManifest) {
@@ -834,6 +992,10 @@ document.addEventListener("keydown", (event) => {
     closeViewer();
   }
 });
+
+window.addEventListener("scroll", scheduleVideoSync, { passive: true });
+window.addEventListener("resize", scheduleVideoSync);
+document.addEventListener("visibilitychange", scheduleVideoSync);
 
 bootstrap().catch((error) => {
   console.error(error);

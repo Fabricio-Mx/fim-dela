@@ -6,12 +6,37 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const GALERIA_DIR = path.join(__dirname, 'Galeria');
 const EXCLUDE_FILES = ['Perfil.jpeg']; // Arquivo de perfil não entra na galeria
+const USE_DISK_FILES = process.argv.includes('--from-disk');
+
+function listGalleryFiles() {
+  if (USE_DISK_FILES) {
+    return fs.readdirSync(GALERIA_DIR);
+  }
+
+  try {
+    const trackedFilesOutput = execFileSync('git', ['ls-files', 'Galeria'], {
+      cwd: __dirname,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+
+    return trackedFilesOutput
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => path.basename(entry));
+  } catch (error) {
+    console.warn('! Nao foi possivel ler os arquivos rastreados pelo Git. Usando disco local.');
+    return fs.readdirSync(GALERIA_DIR);
+  }
+}
 
 function generateManifest() {
-  const files = fs.readdirSync(GALERIA_DIR);
+  const files = listGalleryFiles();
   
   // Filtra arquivos, excluindo o Perfil.jpeg
   const mediaFiles = files
@@ -68,7 +93,7 @@ try {
     manifestCode
   );
   
-  console.log(`✓ media-manifest.js atualizado com ${mediaFiles.length} arquivos`);
+  console.log(`✓ media-manifest.js atualizado com ${mediaFiles.length} arquivos (${USE_DISK_FILES ? 'disco local' : 'arquivos rastreados pelo Git'})`);
   console.log(`\nArquivos por tipo:`);
   
   const types = {
