@@ -300,7 +300,7 @@ function createCard(item) {
     video.preload = "metadata";
     video.autoplay = true;
     video.addEventListener("error", () => {
-      video.replaceWith(createErrorState("Nao foi possivel reproduzir este video no navegador."));
+      video.replaceWith(createVideoFallback(item));
     });
     const indicator = document.createElement("span");
     indicator.className = "media-play-indicator";
@@ -658,6 +658,22 @@ function closeViewer() {
   viewerMedia.textContent = "";
   viewerMeta.textContent = "";
   viewerItem = null;
+}
+
+function createVideoFallback(item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'media-video-fallback';
+  const msg = document.createElement('p');
+  msg.className = 'media-error';
+  msg.textContent = 'Nao foi possivel reproduzir este video no navegador.';
+  const link = document.createElement('a');
+  link.href = item.path;
+  link.textContent = 'Abrir / Baixar arquivo de video';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  wrap.appendChild(msg);
+  wrap.appendChild(link);
+  return wrap;
 }
 
 function renderGallery() {
