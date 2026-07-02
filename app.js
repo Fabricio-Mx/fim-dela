@@ -763,5 +763,10 @@ document.addEventListener("keydown", (event) => {
 
 bootstrap().catch((error) => {
   console.error(error);
-  galleryElement.innerHTML = '<div class="media-error">Nao foi possivel carregar a galeria.</div>';
+  try {
+    const msg = error && error.message ? error.message : String(error);
+    galleryElement.innerHTML = `<div class="media-error">Nao foi possivel carregar a galeria. Erro: ${escapeHtml(msg)}</div>`;
+  } catch (e) {
+    galleryElement.innerHTML = '<div class="media-error">Nao foi possivel carregar a galeria.</div>';
+  }
 });
