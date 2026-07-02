@@ -5,13 +5,8 @@ const STORAGE_KEY = "galeria-social-state-v1";
 const DEFAULT_COMMENT_AUTHOR = "Convidado";
 const DEFAULT_START_TRACK = "Voltável - Ícaro e Gilmar.mp3";
 
-const heroElement = document.querySelector(".hero");
+const audioPanelContainer = document.getElementById("audioPanelContainer");
 const galleryElement = document.getElementById("gallery");
-const mediaCountElement = document.getElementById("mediaCount");
-const formatSummaryElement = document.getElementById("formatSummary");
-const profilePostsElement = document.getElementById("profilePosts");
-const profilePhotosElement = document.getElementById("profilePhotos");
-const profileVideosElement = document.getElementById("profileVideos");
 const viewer = document.getElementById("viewer");
 const viewerMedia = document.getElementById("viewerMedia");
 const viewerTitle = document.getElementById("viewerTitle");
@@ -135,26 +130,6 @@ function renderHeader() {
   const audioCount = audioItems.length;
   const formats = [...new Set([...mediaItems, ...audioItems].map((item) => item.extension.toUpperCase()))].join(" • ");
 
-  if (mediaCountElement) {
-    mediaCountElement.textContent = `${mediaItems.length} midias: ${imageCount} imagens e ${videoCount} videos`;
-  }
-
-  if (formatSummaryElement) {
-    formatSummaryElement.textContent = `Formatos: ${formats}`;
-  }
-
-  if (profilePostsElement) {
-    profilePostsElement.textContent = String(mediaItems.length);
-  }
-
-  if (profilePhotosElement) {
-    profilePhotosElement.textContent = String(imageCount);
-  }
-
-  if (profileVideosElement) {
-    profileVideosElement.textContent = String(videoCount);
-  }
-
   renderAudioPlayer(audioCount);
 }
 
@@ -190,7 +165,7 @@ function renderAudioPlayer(audioCount) {
     player = document.createElement("section");
     player.id = "ambientAudioPanel";
     player.className = "audio-panel";
-    heroElement.appendChild(player);
+    audioPanelContainer.appendChild(player);
   }
 
   player.innerHTML = `
@@ -755,19 +730,25 @@ async function bootstrap() {
     })
   );
 
-  hostModeToggle.checked = socialState.hostMode;
+  if (hostModeToggle) {
+    hostModeToggle.checked = socialState.hostMode;
+    hostModeToggle.addEventListener("change", () => {
+      socialState.hostMode = hostModeToggle.checked;
+      saveSocialState();
+      updateHostHint();
+      renderGallery();
+    });
+  }
+
   updateHostHint();
   renderGallery();
 }
 
-hostModeToggle.addEventListener("change", () => {
-  socialState.hostMode = hostModeToggle.checked;
-  saveSocialState();
-  updateHostHint();
-  renderGallery();
-});
 
-closeViewerButton.addEventListener("click", closeViewer);
+if (closeViewerButton) {
+  closeViewerButton.addEventListener("click", closeViewer);
+}
+
 viewer.addEventListener("click", (event) => {
   if (event.target === viewer) {
     closeViewer();
