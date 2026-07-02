@@ -3,3 +3,6 @@ node_modules
 *.heic
 *.mp4
 *.zip
+!docs/Galeria/*.HEIC
+!docs/Galeria/*.heic
+!docs/Galeria/*.mp4
