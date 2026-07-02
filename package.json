@@ -1,0 +1,8 @@
+{
+  "name": "fim-dela",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./start-gallery.ps1"
+  }
+}

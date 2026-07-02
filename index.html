@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galeria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="profile-card">
+          <img class="profile-avatar" src="./Perfil.jpeg" alt="Foto de perfil de Pão de Queijo" />
+          <div class="profile-copy">
+            <div class="profile-topline">
+              <div>
+                <h2>Pão de Queijo</h2>
+                <p class="profile-handle">@paodequeijo</p>
+              </div>
+              <button class="profile-action" type="button">Seguir</button>
+            </div>
+            <p class="profile-bio">
+              Um feed com fotos, vídeos e significados para guardar os melhores momentos.
+            </p>
+            <div class="profile-stats">
+              <span><strong id="profilePosts">0</strong> publicações</span>
+              <span><strong id="profilePhotos">0</strong> fotos</span>
+              <span><strong id="profileVideos">0</strong> vídeos</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-content">
+          <p class="eyebrow">Memorias</p>
+          <h1>Feed com curtidas, comentarios e significado</h1>
+          <p class="hero-copy">
+            Visualizacao tipo Instagram para as suas fotos e videos, com espaco para voce
+            explicar o significado de cada memoria como host.
+          </p>
+          <div class="hero-tools">
+            <label class="host-toggle" for="hostModeToggle">
+              <input id="hostModeToggle" type="checkbox" />
+              <span>Modo host</span>
+            </label>
+            <p id="hostHint" class="host-hint">
+              Ative o modo host para escrever o significado de cada imagem ou video.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section id="gallery" class="gallery" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <dialog id="viewer" class="viewer">
+      <button id="closeViewer" class="viewer-close" type="button" aria-label="Fechar">
+        Fechar
+      </button>
+      <div class="viewer-body">
+        <div id="viewerMedia" class="viewer-media"></div>
+        <div class="viewer-caption">
+          <strong id="viewerTitle"></strong>
+          <span id="viewerType"></span>
+        </div>
+        <section id="viewerMeta" class="viewer-meta"></section>
+      </div>
+    </dialog>
+
+    <script src="./media-manifest.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
