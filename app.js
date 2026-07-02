@@ -636,6 +636,10 @@ async function openViewer(item) {
     video.controls = true;
     video.autoplay = true;
     video.playsInline = true;
+    video.addEventListener('error', () => {
+      viewerMedia.textContent = '';
+      viewerMedia.appendChild(createVideoFallback(item));
+    });
     viewerMedia.appendChild(video);
   } else {
     const image = document.createElement("img");
