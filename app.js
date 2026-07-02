@@ -119,6 +119,10 @@ function buildRelativePath(path) {
 }
 
 function updateHostHint() {
+  if (!hostHint) {
+    return;
+  }
+
   hostHint.textContent = socialState.hostMode
     ? "Modo host ativo. Agora voce pode escrever ou editar o significado de cada memoria."
     : "Modo visitante ativo. Curtidas e comentarios continuam liberados.";
