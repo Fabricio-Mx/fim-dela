@@ -2,8 +2,6 @@
 *.zip
 *.HEIC
 *.heic
-*.MOV
-*.mov
 *.M4V
 *.m4v
 node_modules/
