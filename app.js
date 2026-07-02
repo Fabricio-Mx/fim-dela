@@ -53,7 +53,6 @@ let audioItems = [];
 let activeAudioFile = "";
 let viewerItem = null;
 let libheifReady;
-let audioWasPlaying = false;
 let videoSyncScheduled = false;
 let rawMediaCount = 0;
 let activeFeed = "all";
@@ -237,11 +236,15 @@ function syncFeedTabs() {
 
 function formatHighlightLabel(fileName) {
   const cleanLabel = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-  if (cleanLabel.length <= 14) {
-    return cleanLabel;
+  if (/^img\s*/i.test(cleanLabel)) {
+    return "Memoria";
   }
 
-  return `${cleanLabel.slice(0, 12).trim()}...`;
+  if (/^whatsapp\s*/i.test(cleanLabel)) {
+    return "Momento";
+  }
+
+  return cleanLabel.length <= 14 ? "Destaque" : "Memoria";
 }
 
 function createHighlightPreview(item) {
@@ -293,6 +296,10 @@ function renderHighlights() {
 
 function getPostMetaLabel(item) {
   return item.type === "video" ? PROFILE.reelLabel : PROFILE.photoLabel;
+}
+
+function getMediaBadgeLabel(item) {
+  return item.type === "video" ? "Reel" : "Foto";
 }
 
 function getPostCaption(item, state) {
@@ -545,7 +552,7 @@ function createCard(item) {
 
   const badge = document.createElement("span");
   badge.className = "media-badge";
-  badge.textContent = item.type === "video" ? "video" : item.extension.toUpperCase();
+  badge.textContent = getMediaBadgeLabel(item);
   button.appendChild(badge);
 
   if (item.type === "video") {
@@ -585,11 +592,11 @@ function createCard(item) {
 
   const name = document.createElement("div");
   name.className = "media-name";
-  name.textContent = `${PROFILE.handle} • ${item.fileName}`;
+  name.textContent = `${PROFILE.handle} • ${getPostMetaLabel(item)}`;
 
   const meta = document.createElement("div");
   meta.className = "media-meta";
-  meta.textContent = `${humanTypeLabel(item)} • toque para ampliar`;
+  meta.textContent = "Toque para ampliar";
 
   info.append(name, meta);
   const caption = document.createElement("div");
@@ -645,7 +652,7 @@ function createSocialSection(item, state) {
     <div class="action-stats action-stats-inline">
       <strong>${state.likes} curtidas</strong>
       <span>${formatCommentCount(state.comments.length)}</span>
-      <span>${item.fileName}</span>
+      <span>${getPostMetaLabel(item)}</span>
     </div>
     <details class="social-drawer meaning-block" data-drawer="meaning">
       <summary class="drawer-summary">
@@ -903,15 +910,9 @@ function renderViewerMeta(item) {
 }
 
 async function openViewer(item) {
-  const ambientAudio = document.getElementById("ambientAudio");
-  if (ambientAudio && !ambientAudio.paused) {
-    ambientAudio.pause();
-    audioWasPlaying = true;
-  }
-
   viewerItem = item;
-  viewerTitle.textContent = item.fileName;
-  viewerType.textContent = humanTypeLabel(item);
+  viewerTitle.textContent = PROFILE.displayName;
+  viewerType.textContent = getPostMetaLabel(item);
   viewerMedia.textContent = "";
 
   if (item.type === "video") {
@@ -944,14 +945,6 @@ function closeViewer() {
   const media = viewerMedia.querySelector("video");
   if (media) {
     media.pause();
-  }
-
-  if (audioWasPlaying) {
-    const ambientAudio = document.getElementById("ambientAudio");
-    if (ambientAudio) {
-      ambientAudio.play().catch(e => console.warn("Could not resume audio", e));
-    }
-    audioWasPlaying = false;
   }
 
   viewer.close();
